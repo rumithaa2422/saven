@@ -1,0 +1,31 @@
+{
+  "name": "saven-infraops-command-center-full",
+  "private": true,
+  "version": "1.1.0",
+  "description": "AI-first enterprise InfraOps portal for Saven with React, Node.js, MySQL, configurable settings, custom and Microsoft login, AI provider switch, Email and Teams notifications, and Excel imports.",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "npm run dev --workspace=@saven/infraops-web",
+    "dev:3001": "npm run dev --workspace=@saven/infraops-web -- -p 3001",
+    "dev:api": "npm run dev --workspace=@saven/infraops-api",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace=@saven/infraops-api",
+    "db:migrate": "npm run db:migrate --workspace=@saven/infraops-api",
+    "db:seed": "npm run db:seed --workspace=@saven/infraops-api",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

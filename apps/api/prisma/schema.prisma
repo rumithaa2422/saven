@@ -1,0 +1,507 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_USER
+  WAITING_FOR_VENDOR
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum IncidentSeverity {
+  SEV1
+  SEV2
+  SEV3
+  SEV4
+}
+
+enum ChangeStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SCHEDULED
+  IMPLEMENTED
+  FAILED
+  ROLLED_BACK
+  CLOSED
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  UNDER_REPAIR
+  LOST
+  DAMAGED
+  RETIRED
+  DISPOSED
+}
+
+enum AccessStatus {
+  REQUESTED
+  MANAGER_APPROVAL_PENDING
+  INFOSEC_APPROVAL_PENDING
+  APPROVED
+  PROVISIONED
+  REJECTED
+  REVOKED
+  EXPIRED
+}
+
+enum ComplianceStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  EVIDENCE_PENDING
+  REVIEW_PENDING
+  COMPLIANT
+  NON_COMPLIANT
+  OVERDUE
+}
+
+enum AIProviderKey {
+  mock
+  openai
+  claude
+  private
+}
+
+model User {
+  id                 String            @id @default(cuid())
+  employeeCode       String?           @unique
+  name               String
+  email              String            @unique
+  passwordHash       String?
+  microsoftObjectId  String?           @unique
+  department         String?
+  designation        String?
+  mobile             String?
+  isActive           Boolean           @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  roles              UserRole[]
+  serviceRequests    ServiceRequest[]  @relation("CreatedServiceRequests")
+  assignedTickets    ServiceRequest[]  @relation("AssignedServiceRequests")
+  comments           ServiceRequestComment[]
+  incidentsOwned     Incident[]        @relation("IncidentOwner")
+  assets             AssetAssignment[]
+  auditLogs          AuditLog[]
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+
+model Project {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  clientName    String?
+  deliveryOwner String?
+  status        String         @default("ACTIVE")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  environments  Environment[]
+  serviceRequests ServiceRequest[]
+  incidents     Incident[]
+  changeRequests ChangeRequest[]
+}
+
+model Environment {
+  id              String   @id @default(cuid())
+  projectId        String
+  name             String
+  type             String
+  baseUrl          String?
+  cloudProvider    String?
+  serverDetails    String? @db.Text
+  databaseDetails  String? @db.Text
+  monitoringUrl    String?
+  backupEnabled    Boolean @default(false)
+  owner            String?
+  status           String  @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  project          Project  @relation(fields: [projectId], references: [id])
+}
+
+model ServiceRequest {
+  id            String        @id @default(cuid())
+  requestNo     String        @unique
+  title         String
+  description   String        @db.Text
+  category      String
+  subCategory   String?
+  priority      Priority      @default(MEDIUM)
+  status        TicketStatus  @default(OPEN)
+  slaDueAt      DateTime?
+  projectId     String?
+  createdById   String
+  assignedToId  String?
+  waitingReason String?
+  resolution    String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  closedAt      DateTime?
+  project       Project?      @relation(fields: [projectId], references: [id])
+  createdBy     User          @relation("CreatedServiceRequests", fields: [createdById], references: [id])
+  assignedTo    User?         @relation("AssignedServiceRequests", fields: [assignedToId], references: [id])
+  comments      ServiceRequestComment[]
+  @@index([status, priority])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model ServiceRequestComment {
+  id               String         @id @default(cuid())
+  serviceRequestId String
+  authorId         String
+  body             String         @db.Text
+  isInternal       Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  author           User           @relation(fields: [authorId], references: [id])
+}
+
+model Incident {
+  id              String           @id @default(cuid())
+  incidentNo      String           @unique
+  title           String
+  description     String           @db.Text
+  severity        IncidentSeverity @default(SEV3)
+  status          TicketStatus     @default(OPEN)
+  impactedService String?
+  businessImpact  String?          @db.Text
+  technicalImpact String?          @db.Text
+  startedAt       DateTime
+  detectedAt      DateTime         @default(now())
+  resolvedAt      DateTime?
+  rca             String?          @db.Text
+  correctiveAction String?         @db.Text
+  preventiveAction String?         @db.Text
+  projectId       String?
+  ownerId         String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  project         Project?         @relation(fields: [projectId], references: [id])
+  owner           User?            @relation("IncidentOwner", fields: [ownerId], references: [id])
+  timeline        IncidentTimeline[]
+  @@index([status, severity])
+}
+
+model IncidentTimeline {
+  id         String   @id @default(cuid())
+  incidentId String
+  note       String   @db.Text
+  eventTime  DateTime @default(now())
+  createdBy  String?
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model Problem {
+  id              String       @id @default(cuid())
+  problemNo       String       @unique
+  title           String
+  description     String       @db.Text
+  status          TicketStatus @default(OPEN)
+  priority        Priority     @default(MEDIUM)
+  rootCause       String?      @db.Text
+  workaround      String?      @db.Text
+  permanentFix    String?      @db.Text
+  linkedIncidentNo String?
+  owner           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model ChangeRequest {
+  id             String       @id @default(cuid())
+  changeNo       String       @unique
+  title          String
+  description    String       @db.Text
+  type           String
+  riskLevel      Priority     @default(MEDIUM)
+  status         ChangeStatus @default(DRAFT)
+  plannedStartAt DateTime?
+  plannedEndAt   DateTime?
+  rollbackPlan   String?      @db.Text
+  testPlan       String?      @db.Text
+  approvalNotes  String?      @db.Text
+  projectId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  project        Project?     @relation(fields: [projectId], references: [id])
+  @@index([status, riskLevel])
+}
+
+model Asset {
+  id             String       @id @default(cuid())
+  assetTag       String       @unique
+  type           String
+  make           String?
+  model          String?
+  serialNumber   String?      @unique
+  status         AssetStatus  @default(AVAILABLE)
+  location       String?
+  purchaseDate   DateTime?
+  warrantyEndAt  DateTime?
+  amcEndAt        DateTime?
+  notes          String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assignments    AssetAssignment[]
+  @@index([status, type])
+}
+
+model AssetAssignment {
+  id          String    @id @default(cuid())
+  assetId     String
+  userId      String
+  assignedAt  DateTime  @default(now())
+  returnedAt  DateTime?
+  conditionAtReturn String?
+  remarks     String?   @db.Text
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model AccessRequest {
+  id            String       @id @default(cuid())
+  requestNo     String       @unique
+  requesterName String
+  requesterEmail String
+  systemName    String
+  accessType    String
+  environment   String?
+  reason        String       @db.Text
+  status        AccessStatus @default(REQUESTED)
+  expiryAt      DateTime?
+  approver      String?
+  provisionedBy String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@index([status, systemName])
+}
+
+model ComplianceControl {
+  id          String             @id @default(cuid())
+  controlCode String             @unique
+  title       String
+  area        String
+  owner       String?
+  frequency   String
+  riskRating  Priority           @default(MEDIUM)
+  description String?            @db.Text
+  tasks       ComplianceTask[]
+}
+
+model ComplianceTask {
+  id            String           @id @default(cuid())
+  controlId     String
+  periodLabel   String
+  dueAt         DateTime
+  status        ComplianceStatus @default(NOT_STARTED)
+  evidenceUrl   String?
+  remarks       String?          @db.Text
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  control       ComplianceControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  @@index([status, dueAt])
+}
+
+model Vendor {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  contactName String?
+  contactEmail String?
+  phone       String?
+  category    String?
+  status      String    @default("ACTIVE")
+  licenses    License[]
+}
+
+model License {
+  id           String   @id @default(cuid())
+  vendorId     String
+  productName  String
+  licenseType  String?
+  totalSeats   Int      @default(0)
+  assignedSeats Int     @default(0)
+  cost         Decimal? @db.Decimal(12, 2)
+  renewalAt    DateTime?
+  owner        String?
+  status       String   @default("ACTIVE")
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  @@index([renewalAt, status])
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(cuid())
+  articleNo   String   @unique
+  title       String
+  category    String
+  content     String   @db.Text
+  tags        String?
+  status      String   @default("DRAFT")
+  version     Int      @default(1)
+  owner       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ReportRequest {
+  id           String   @id @default(cuid())
+  reportNo     String   @unique
+  title        String
+  type         String
+  filtersJson  Json?
+  requestedBy  String?
+  status       String   @default("REQUESTED")
+  fileUrl      String?
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+}
+
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  channel   String
+  subject   String?
+  body      String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AIProviderSetting {
+  id          String        @id @default(cuid())
+  providerKey AIProviderKey @unique
+  displayName String
+  isEnabled   Boolean       @default(false)
+  modelName   String?
+  baseUrl     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model AIConversation {
+  id        String      @id @default(cuid())
+  title     String?
+  userEmail String?
+  createdAt DateTime    @default(now())
+  messages  AIMessage[]
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  role           String
+  content        String         @db.Text
+  provider       AIProviderKey?
+  sourcesJson    Json?
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model ExcelImportBatch {
+  id          String          @id @default(cuid())
+  module      String
+  fileName    String
+  status      String          @default("PREVIEW")
+  uploadedBy  String?
+  totalRows   Int             @default(0)
+  validRows   Int             @default(0)
+  invalidRows Int             @default(0)
+  createdAt   DateTime        @default(now())
+  rows        ExcelImportRow[]
+}
+
+model ExcelImportRow {
+  id           String           @id @default(cuid())
+  batchId      String
+  rowNumber    Int
+  rawJson      Json
+  normalizedJson Json?
+  errorsJson   Json?
+  status       String           @default("PENDING")
+  batch        ExcelImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  group       String
+  label       String
+  description String?  @db.Text
+  valueJson   Json
+  isSecret    Boolean  @default(false)
+  isEditable  Boolean  @default(true)
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([group])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  beforeJson  Json?
+  afterJson   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
