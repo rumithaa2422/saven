@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Bot, Search, ShieldCheck } from 'lucide-react';
+import { Bell, Search, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
 import { navigationItems } from '@/lib/navigation';
-import { AICommandPanel } from './ai-command-panel';
+import { CollapsibleAIPanel, AICommandPanel } from './ai-command-panel';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -66,19 +66,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="p-8 pb-32">{children}</div>
       </main>
 
-      <aside className="fixed inset-y-0 right-0 z-20 w-[28rem] border-l border-slate-200 bg-white">
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white">
-            <Bot className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-slate-950">InfraOps AI Assistant</div>
-            <div className="text-xs text-slate-500">Always available on every screen</div>
-          </div>
-        </div>
-        <AICommandPanel compact />
-      </aside>
+      {/* Collapsible AI Panel - Right side hover-triggered drawer */}
+      <CollapsibleAIPanel />
 
+      {/* Bottom AI Command Bar - Unchanged */}
       <div className="fixed bottom-0 left-72 right-[28rem] z-30 border-t border-slate-200 bg-white/95 px-8 py-4 backdrop-blur">
         <AICommandPanel bottomBar />
       </div>
