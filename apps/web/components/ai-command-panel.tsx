@@ -117,99 +117,37 @@ export function AICommandPanel({ compact, bottomBar }: { compact?: boolean; bott
   );
 }
 
-// Collapsible AI Panel - Hover-triggered drawer
-export function CollapsibleAIPanel() {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isToggled, setIsToggled] = useState(false); // For mobile click toggle
-  const panelRef = useRef<HTMLDivElement>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Check for mobile viewports
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Handle mouse enter with delay
-  const handleMouseEnter = useCallback(() => {
-    if (isMobile) return;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    setIsExpanded(true);
-  }, [isMobile]);
-
-  // Handle mouse leave with delay
-  const handleMouseLeave = useCallback(() => {
-    if (isMobile) return;
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsExpanded(false);
-    }, 150); // Small delay to prevent accidental collapse
-  }, [isMobile]);
-
-  // Handle mobile toggle
-  const handleMobileToggle = useCallback(() => {
-    setIsToggled((prev) => !prev);
-    setIsExpanded((prev) => !prev);
-  }, []);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
-
+// Collapsible AI Panel - Click toggle drawer
+export function CollapsibleAIPanel({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
   const panelWidth = 'w-[28rem]';
-  const collapsedWidth = 'w-0';
 
   return (
     <>
-      {/* Fixed Tab - Always visible on the right side */}
-      <div
-        className={`fixed right-0 top-0 z-40 flex h-full flex-col transition-all duration-300 ease-in-out ${
-          isExpanded ? 'translate-x-0' : 'translate-x-0'
-        }`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        ref={panelRef}
-      >
-        {/* Collapsed Tab Indicator */}
-        <div
-          className={`flex flex-col items-center justify-center border-l border-slate-200 bg-white py-4 shadow-soft transition-all duration-300 ${
-            isExpanded ? 'w-0 overflow-hidden border-l-0 p-0 opacity-0' : 'w-12 border-l bg-white/95'
-          }`}
+      {/* Fixed Tab/Button - Visible when closed */}
+      {!isOpen && (
+        <button
+          onClick={onToggle}
+          className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-xl bg-indigo-600 p-3 text-white shadow-lg transition-all duration-300 hover:bg-indigo-700"
+          aria-label="Open AI Assistant"
         >
-          {/* Tab visible when collapsed */}
-          <div className="flex h-full flex-col items-center justify-center gap-2">
-            <div className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-l-2xl rounded-r-lg bg-indigo-600 text-white shadow-md transition-transform hover:scale-105" onClick={isMobile ? handleMobileToggle : undefined}>
-              <Bot className="h-6 w-6" />
-            </div>
-            <div className="writing-mode-vertical flex flex-col items-center gap-1">
-              <span className="text-[10px] font-semibold text-slate-700 [writing-mode:vertical-rl] [transform:rotate(180deg)]">
-                InfraOps
-              </span>
-              <span className="text-[10px] font-semibold text-slate-700 [writing-mode:vertical-rl] [transform:rotate(180deg)]">
-                AI
-              </span>
-              <span className="text-[10px] font-semibold text-slate-700 [writing-mode:vertical-rl] [transform:rotate(180deg)]">
-                Assistant
-              </span>
-            </div>
+          <Bot className="h-6 w-6" />
+          <div className="writing-mode-vertical flex flex-col items-center gap-0.5">
+            <span className="text-[9px] font-semibold [writing-mode:vertical-rl] [transform:rotate(180deg)]">
+              InfraOps
+            </span>
+            <span className="text-[9px] font-semibold [writing-mode:vertical-rl] [transform:rotate(180deg)]">
+              AI
+            </span>
+            <span className="text-[9px] font-semibold [writing-mode:vertical-rl] [transform:rotate(180deg)]">
+              Assistant
+            </span>
           </div>
-        </div>
+        </button>
+      )}
 
-        {/* Expanded Panel Content */}
-        <div
-          className={`h-full overflow-hidden border-l border-slate-200 bg-white transition-all duration-300 ease-in-out ${
-            isExpanded ? panelWidth : collapsedWidth
-          }`}
-        >
+      {/* Expanded Panel Content - Only rendered when open */}
+      {isOpen && (
+        <div className={`fixed right-0 top-0 z-40 flex h-full ${panelWidth} flex-col border-l border-slate-200 bg-white shadow-xl transition-all duration-300`}>
           {/* Header */}
           <div className="flex h-16 flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5">
             <div className="flex items-center gap-3">
@@ -221,14 +159,13 @@ export function CollapsibleAIPanel() {
                 <div className="text-xs text-slate-500">Always available on every screen</div>
               </div>
             </div>
-            {isMobile && (
-              <button
-                onClick={handleMobileToggle}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            )}
+            <button
+              onClick={onToggle}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Close AI Assistant"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
 
           {/* Panel Content - Scrollable */}
@@ -236,7 +173,7 @@ export function CollapsibleAIPanel() {
             <AICommandPanelContent />
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

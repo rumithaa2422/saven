@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Search, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
+import { useState } from 'react';
 import { navigationItems } from '@/lib/navigation';
 import { CollapsibleAIPanel, AICommandPanel } from './ai-command-panel';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -44,7 +46,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
 
-      <main className="pl-72 pr-[28rem]">
+      {/* Main content with conditional width */}
+      <main className={`pl-72 transition-all duration-300 ${isAIPanelOpen ? 'pr-[28rem]' : ''}`}>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-8 backdrop-blur">
           <div className="flex w-[32rem] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
             <Search className="h-4 w-4" />
@@ -66,13 +69,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="p-8 pb-32">{children}</div>
       </main>
 
-      {/* Collapsible AI Panel - Right side hover-triggered drawer */}
-      <CollapsibleAIPanel />
-
       {/* Bottom AI Command Bar - Unchanged */}
-      <div className="fixed bottom-0 left-72 right-[28rem] z-30 border-t border-slate-200 bg-white/95 px-8 py-4 backdrop-blur">
+      <div className={`fixed bottom-0 left-72 z-30 border-t border-slate-200 bg-white/95 px-8 py-4 backdrop-blur transition-all duration-300 ${isAIPanelOpen ? 'right-[28rem]' : 'right-0'}`}>
         <AICommandPanel bottomBar />
       </div>
+
+      {/* Collapsible AI Panel - Click toggle drawer */}
+      <CollapsibleAIPanel isOpen={isAIPanelOpen} onToggle={() => setIsAIPanelOpen(!isAIPanelOpen)} />
     </div>
   );
 }
